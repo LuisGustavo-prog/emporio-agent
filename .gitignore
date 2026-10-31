@@ -1,0 +1,10 @@
+/docs/
+
+/app/data/raw/
+
+*.db
+*.sqlite
+*.sqlite3
+/app/data/processed/
+
+/app/.env

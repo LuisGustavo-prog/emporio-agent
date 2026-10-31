@@ -1,0 +1,33 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+!.env.example
+
+# Credenciais, tokens e arquivos de configuração local
+secrets/
+credentials/
+*secret*
+*credential*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Bancos locais e possíveis cópias com dados de clientes
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+data/processed/
+
+# Logs e arquivos temporários
+*.log
+logs/
+*.bak
+*.backup
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
