@@ -1,0 +1,16 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS categories (category_id INTEGER PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS products (product_id INTEGER PRIMARY KEY, price_brl TEXT NOT NULL, name TEXT NOT NULL, category_id INTEGER NOT NULL REFERENCES categories(category_id), description TEXT NOT NULL DEFAULT '', stock_quantity INTEGER NOT NULL, status TEXT NOT NULL CHECK (status IN ('active','discontinued','coming_soon')), specs TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+CREATE TABLE IF NOT EXISTS promotions (promotion_id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(product_id), discount_percent TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL CHECK (is_active IN (0,1)));
+CREATE INDEX IF NOT EXISTS idx_promotions_product ON promotions(product_id, is_active);
+CREATE TABLE IF NOT EXISTS customers (customer_id INTEGER PRIMARY KEY, name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT NOT NULL, city TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE TABLE IF NOT EXISTS orders (order_id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(customer_id), order_date TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending','confirmed','shipped','delivered','cancelled')), total_brl TEXT NOT NULL, payment_method TEXT NOT NULL, tracking_code TEXT, estimated_delivery TEXT, notes TEXT);
+CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
+CREATE TABLE IF NOT EXISTS order_items (order_id INTEGER NOT NULL REFERENCES orders(order_id), quantity INTEGER NOT NULL, product_id INTEGER NOT NULL REFERENCES products(product_id), PRIMARY KEY (order_id, product_id));
+CREATE TABLE IF NOT EXISTS conversations (session_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS messages (message_id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL REFERENCES conversations(session_id) ON DELETE CASCADE, role TEXT NOT NULL CHECK (role IN ('user','assistant','tool')), content TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, message_id);
+CREATE TABLE IF NOT EXISTS complaints (protocol TEXT PRIMARY KEY, order_id INTEGER REFERENCES orders(order_id) ON DELETE SET NULL, customer_name TEXT, contact TEXT, description TEXT NOT NULL, created_at TEXT NOT NULL);

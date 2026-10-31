@@ -1,0 +1,2 @@
+order_id,customer_id,order_date,status,total_brl,payment_method,tracking_code,estimated_delivery,notes
+900001,1,2026-10-01,delivered,599.9,pix,DEMO0000001,2026-10-08,
