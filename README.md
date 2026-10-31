@@ -1,106 +1,117 @@
-# Emporio da Musica — agente Tom
+# Emporio da Musica — Tom Support Agent
 
-Agente de atendimento em portugues brasileiro com consulta ao catalogo, pedidos, pagamentos, devolucoes, politicas da loja e registro de reclamacoes. O LLM interpreta o pedido; dados e regras de negocio sao executados pelo codigo.
+A Brazilian Portuguese customer support agent for product catalog, orders, payments, returns, store policies, and complaint registration. The LLM interprets customer requests; application code handles operational data and business rules.
 
-## Requisitos
+## Requirements
 
-- Python 3.11 ou superior
-- Chave de API da Groq para conversar com o agente
+- Python 3.11 or newer
+- A Groq API key to chat with the agent
 
-## Instalacao
+## Installation
 
-Execute os comandos de instalacao a partir da raiz do repositorio:
+From the repository root, create and activate a virtual environment, install the project, and copy the environment template.
+
+### PowerShell
 
 ```powershell
 Set-Location app
-py -m venv .venv
+py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -e .
 Copy-Item .env.example .env
 ```
 
-Edite `.env` e preencha `GROQ_API_KEY`. A configuracao permite selecionar modelo, banco SQLite e data de referencia; veja `.env.example`.
+### Command Prompt (CMD)
 
-## Uso
+```bat
+cd /d app
+py -3.11 -m venv .venv
+call .venv\Scripts\activate.bat
+python -m pip install -e .
+copy .env.example .env
+```
 
-Execute os comandos a seguir a partir da pasta `app`.
+Edit `.env` and set `GROQ_API_KEY`. You can also configure the model, SQLite database path, and reference date there; see `.env.example`.
+
+## Run the agent
+
+Run these commands from the `app` directory.
 
 ```powershell
-# Validar os CSVs e carregar/atualizar o SQLite
+# Validate the CSV files and load or update SQLite
 python -m emporio_agent.db.loader
 
-# Iniciar o atendimento
+# Start a support session
 emporio-agent
 
-# Ou carregar os dados com o comando principal
+# Or load the data when starting the agent
 emporio-agent --load-data
 ```
 
-O banco SQLite e criado automaticamente em `data/processed/emporio.db` ao iniciar o agente, se ainda nao existir. Se o banco nao tiver produtos, o agente tambem carrega os CSVs de `data/raw` automaticamente na primeira inicializacao. Para recarregar os dados manualmente, use `emporio-agent --load-data` ou `python -m emporio_agent.db.loader`. O comando de carga mostra avisos para inconsistencias conhecidas, preservando o valor original do pedido. Para encerrar o chat, digite `sair`.
+The SQLite database is created automatically at `data/processed/emporio.db` when the agent starts. If it has no products, the agent loads CSV files from `data/raw` on first startup. The loader reports known inconsistencies and preserves recorded order totals. Type `sair` to end a chat session.
 
-Os arquivos originais de clientes e pedidos (`customers.csv`, `orders.csv` e `order_items.csv`) e o manual interno (`politicas_da_loja.pdf`) nao sao versionados. Se os CSVs de clientes e pedidos nao estiverem em `data/raw`, a carga usa os registros ficticios de `data/sample`, incluidos para permitir testar pedidos sem publicar os dados originais. Os arquivos locais em `data/raw` tem precedencia.
+The original customer and order files (`customers.csv`, `orders.csv`, and `order_items.csv`) and the store's internal policy manual (`politicas_da_loja.pdf`) are excluded from Git. When the original customer and order files are absent, the loader uses the synthetic records in `data/sample`, which allow order-related demonstrations without publishing the original records. Local files in `data/raw` take precedence. To enable answers grounded in the policy manual, place a local copy at `data/raw/politicas_da_loja.pdf`.
 
-Ao iniciar, a CLI exibe o identificador da sessao. Para retomar o historico, use `emporio-agent --session-id <id>`.
+The CLI displays a session ID at startup. Resume a conversation with `emporio-agent --session-id <id>`.
 
-## Estrutura
+## Project structure
 
-- `core/`: modelos, constantes e regras puras.
-- `db/`: SQLite, carga, validacao e consultas parametrizadas.
-- `rag/`: extracao, segmentacao e recuperacao lexical do PDF de politicas.
-- `services/`: casos de uso.
-- `tools/`: schemas, validacao e despacho para o agente.
-- `agent/`: prompt, cliente Groq, memoria persistente e orquestracao.
-- `tests/`: testes automatizados em `unit/`; `evaluation/cases.jsonl` registra cenarios manuais de avaliacao, e `integration/` fica reservado para evolucao.
+- `app/src/emporio_agent/core/`: models, constants, and pure business rules.
+- `app/src/emporio_agent/db/`: SQLite schema, loading, validation, and parameterized queries.
+- `app/src/emporio_agent/rag/`: PDF extraction, chunking, and lexical retrieval for store policies.
+- `app/src/emporio_agent/services/`: application use cases.
+- `app/src/emporio_agent/tools/`: tool schemas, validation, and dispatch.
+- `app/src/emporio_agent/agent/`: system prompt, Groq client, persistent memory, and orchestration.
+- `app/tests/`: unit tests and manual evaluation scenarios in `evaluation/cases.jsonl`.
 
-As dependencias permitidas entre camadas e o mapa de ferramentas estao em [`app/docs/ESTRUTURA.md`](app/docs/ESTRUTURA.md).
+See [`app/docs/ESTRUTURA.md`](app/docs/ESTRUTURA.md) for layer dependencies and the tool map.
 
-## Decisoes tecnicas
+## Technical decisions
 
-- **Abordagem do agente:** Python proprio com function calling da API Groq, sem framework de agentes. Isso mantem o fluxo de chamadas explicito e permite validar argumentos e executar regras de negocio no codigo.
-- **Modelo e provedor:** `openai/gpt-oss-120b` via Groq, configuravel por `GROQ_MODEL`. A escolha permite testar um modelo de chat com suporte a ferramentas; a API requer `GROQ_API_KEY` e seus limites/precos dependem da conta.
-- **Dados operacionais:** SQLite para catalogo, pedidos e historico de conversa. Consultas SQL parametrizadas e servicos Python mantem os dados como fonte de verdade para preco, estoque, pedidos e calculos.
-- **Politicas (RAG):** o PDF e dividido em trechos e recuperado por busca lexical com ponderacao IDF, sem embeddings ou servico vetorial externo. A abordagem e simples de executar localmente e devolve pagina/secao para fundamentar respostas; pode perder relevancia em perguntas com vocabulario distante do manual.
-- **Prompt e ferramentas:** o prompt define persona, escopo e regras de atendimento; tools fazem consultas e validacoes. O prompt orienta o modelo, mas validacoes de identidade e calculos sensiveis ficam no codigo.
-- **Interface:** CLI para manter a entrega focada no agente de mensagens de texto, como permitido pelo enunciado. Uma interface web ou integracao com canal de mensagens seria um proximo passo.
+- **Agent approach:** Python with Groq function calling and no agent framework. This keeps the call flow explicit and lets the application validate arguments and run business rules in code.
+- **Model and provider:** `openai/gpt-oss-120b` via Groq, configurable with `GROQ_MODEL`. The API requires `GROQ_API_KEY`; provider limits and pricing depend on the account and may change.
+- **Operational data:** SQLite stores the catalog, orders, and conversation history. Parameterized SQL and Python services keep the database as the source of truth for prices, stock, orders, and calculations.
+- **Policy retrieval (RAG):** the PDF is split into chunks and searched lexically with IDF weighting. No embeddings or external vector service are used. Retrieved results include page or section context, but lexical search may miss relevant passages when wording differs significantly.
+- **Prompt and tools:** the prompt defines the persona, scope, and response guidance. Tools perform lookups and validation. Identity checks and sensitive calculations are enforced by code rather than relying on prompt instructions alone.
+- **Interface:** a CLI keeps the implementation focused on the text agent described in the challenge. A web interface or messaging channel could be added later.
 
-## Decisoes e limitacoes conhecidas
+## Known assumptions and limitations
 
-- O manual diz frete gratis **acima** de R$ 500 na regiao metropolitana. Em Campo Grande, abaixo ou igual a esse valor, o frete e R$ 35; para outras cidades o valor depende de CEP, peso e dimensoes e deve ser calculado no checkout. Itens grandes podem exigir cotacao especial.
-- Para envio fora da regiao metropolitana, as modalidades e prazos estimados sao PAC (5–12 dias uteis), SEDEX (2–5) e Jadlog (3–8). O agente nao inventa o valor do frete.
-- Horarios: segunda a sexta, 9h–18h; sabado, 9h–13h; domingos e feriados, fechado. O calendario cobre feriados nacionais e estaduais; feriados municipais podem variar.
-- O modelo padrao e `openai/gpt-oss-120b`, consultado em 31/10/2026. Precos e disponibilidade do provedor podem mudar.
-- O manual lista dois telefones em secoes diferentes: (67) 3341-4444 para telefone da loja e (67) 3321-4500 para WhatsApp. O e-mail com acento aparece em uma secao; adota-se `contato@emporiodamusica.com.br`.
-- O CSV tem 65 produtos, embora o manual diga mais de 300 instrumentos. Se nao encontrar um item, o agente diz que ele nao consta no sistema.
-- Pedidos 3 e 20 têm total diferente da soma dos itens. O total exibido e sempre o campo `total_brl` original. Clientes 11 e 43 compartilham e-mail; identidade e verificada contra o titular do pedido informado.
-- O recebimento nao esta registrado separadamente. Para arrependimento em pedidos entregues, `estimated_delivery` e usado como aproximacao, salvo se a pessoa informar a data real.
-- O catalogo nao registra todas as condicoes de elegibilidade (embalagem, sinais de uso, venda final, personalizacao ou boquilhas). A ferramenta lista os requisitos e encaminha excecoes a atendente humano.
-- Feriados locais, valores de CEP e cotacoes de instrumentos grandes exigem confirmacao humana ou do checkout.
+- The manual offers free delivery **above** R$ 500 in the metropolitan area. In Campo Grande, orders of R$ 500 or less cost R$ 35 to deliver. Other cities require a checkout quote based on postal code, weight, and dimensions. Large instruments may need a special quote.
+- For deliveries outside the metropolitan area, the manual estimates 5–12 business days for PAC, 2–5 for SEDEX, and 3–8 for Jadlog. The agent does not invent shipping prices.
+- Store hours are Monday through Friday, 9:00–18:00; Saturday, 9:00–13:00; closed on Sundays and holidays. The calendar covers national and state holidays; municipal holidays may vary.
+- The default model was checked on 2026-10-31. Model availability and provider pricing can change.
+- The manual lists two phone numbers in different sections: (67) 3341-4444 for the store and (67) 3321-4500 for WhatsApp. One section accents the email address; the project uses `contato@emporiodamusica.com.br`.
+- The catalog CSV contains 65 products, while the manual describes more than 300 instruments. If a product is not in the available data, the agent says it cannot find it in the system.
+- Some recorded order totals differ from the sum of their items. The agent always reports the recorded `total_brl`. The source data also contains a repeated customer email, so identity is checked against the owner of the specified order.
+- The actual receipt date is not stored separately. For delivered orders, `estimated_delivery` is used as an approximation unless the customer provides the actual date.
+- The catalog does not record every return eligibility condition, such as packaging, signs of use, final-sale status, custom adjustments, or mouthpieces. The tool explains the known requirements and refers exceptions to a human attendant.
+- Local holidays, postal-code prices, and special quotes for large instruments require confirmation by a person or at checkout.
 
-### Proximos passos com mais tempo
+### What I would improve with more time
 
-- Ampliar testes de integracao e avaliacao com conversas representativas, incluindo limites e erros do provedor LLM.
-- Criar uma interface web ou integrar o agente a um canal de mensagens, mantendo a CLI como ferramenta de desenvolvimento.
-- Melhorar a recuperacao de politicas com avaliacao de relevancia e, se os resultados justificarem, busca semantica.
-- Adicionar observabilidade e tratamento operacional para limites temporarios da API, sem expor dados pessoais nos logs.
+- Expand integration tests and agent evaluations with representative conversations, including provider limits and API errors.
+- Add a web interface or messaging integration while keeping the CLI for development.
+- Evaluate policy retrieval quality and consider semantic search if results justify it.
+- Add operational observability and handling for temporary API limits without exposing personal data in logs.
 
-## Desenvolvimento
+## Development
 
-Execute estes comandos a partir da raiz do repositorio.
+Run these commands from the `app` directory:
 
 ```powershell
-Set-Location app
 python -m pip install -e ".[dev]"
 pytest
 ruff check src tests
 ```
 
-## Seguranca e dados
+## Security and data handling
 
-- A consulta de pedidos valida o contato diretamente contra o titular do pedido. E-mails nunca sao usados para localizar um cliente.
-- A chave Groq e lida do ambiente e nao deve ser commitada.
-- O SQL e parametrizado; tools aceitam apenas argumentos definidos e retornam erros controlados.
-- A carga e transacional e pode ser repetida. Ela nao recalcula o total de pedidos.
+- Order lookups verify the supplied contact against the owner of that order. Email addresses are never used to search for a customer.
+- The Groq API key is read from the environment and must not be committed.
+- SQL queries are parameterized; tools accept only defined arguments and return controlled errors.
+- Data loading is transactional and can be repeated. It does not recalculate recorded order totals.
 
-## Uso de assistentes de IA
+## Use of AI coding assistants
 
-O registro de uso e decisoes esta em [`app/docs/ai-workflow.md`](app/docs/ai-workflow.md).
+OpenAI Codex was used to review the project materials, implement and refine the agent in layers, analyze conversations, and document decisions. Suggestions were reviewed and adjusted during development; business rules and sensitive calculations remain implemented in application code. The detailed activity log is in [`app/docs/ai-workflow.md`](app/docs/ai-workflow.md).
