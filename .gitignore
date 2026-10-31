@@ -1,6 +1,9 @@
 /docs/
 
-/app/data/raw/
+/app/data/raw/customers.csv
+/app/data/raw/orders.csv
+/app/data/raw/order_items.csv
+/app/data/raw/politicas_da_loja.pdf
 
 *.db
 *.sqlite
